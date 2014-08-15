@@ -1,7 +1,9 @@
 from translationstring import TranslationStringFactory
 from deform.widget import (
-    Widget, SelectWidget, Select2Widget, RadioChoiceWidget)
-from colander import null
+    Widget, SelectWidget, Select2Widget, RadioChoiceWidget,
+    MappingWidget, SequenceWidget)
+from sqlalchemy.orm import ColumnProperty
+from colander import null, Invalid
 import json
 
 
@@ -260,3 +262,62 @@ class RelationRadioChoiceWidget(RelationSelectMixin, RadioChoiceWidget):
         RelationSelectMixin.__init__(
             self, model, id_field, label_field, None, order_by)
         RadioChoiceWidget.__init__(self, **kw)
+
+
+class RelationMultiSelect2Widget(RelationSelectMixin, Select2Widget):
+    """ TODO
+
+    """
+
+    def __init__(
+            self, model, id_field, label_field,
+            default_value=None, order_by=None, **kw):
+        kw['multiple'] = True
+        RelationSelectMixin.__init__(
+            self, model, id_field, label_field, default_value, order_by)
+        Select2Widget.__init__(self, **kw)
+
+    def deserialize(self, field, pstruct):
+        # TODO handler errors like SequenceWidget.deserialize
+        error = None
+        ids = pstruct
+        # ids = Select2Widget.deserialize(self, field, pstruct)
+
+        mapped_id_field = self._get_mapped_id_field(field)
+        print mapped_id_field
+        result = []
+        for id in ids:
+            obj = {}
+            obj[mapped_id_field.name] = mapped_id_field.deserialize(id)
+            result.append(obj)
+
+        print result
+
+        return result
+
+    def _get_mapped_id_field(self, field):
+        # TODO clean up, error handling
+        mapped_id_field = None
+
+        relation_field = field.children[0]
+        print relation_field.children
+
+        mapper = relation_field.schema.class_
+        for mapped_column in mapper.attrs:
+            if isinstance(mapped_column, ColumnProperty):
+                column = mapped_column.columns[0]
+                foreign_keys = list(column.foreign_keys)
+                for foreign_key in foreign_keys:
+                    if foreign_key.column.table == self.model.__table__:
+                        mapped_id_field = column.name
+
+                    print type(foreign_key.column.table)
+                    print type(self.model)
+                    print foreign_key
+
+        for subfield in relation_field.children:
+            if subfield.name == mapped_id_field:
+                return subfield
+
+        return None
+

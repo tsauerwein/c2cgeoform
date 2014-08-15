@@ -1,3 +1,4 @@
+# coding=utf-8
 from sqlalchemy import (
     Column,
     Integer,
@@ -7,6 +8,7 @@ from sqlalchemy import (
     ForeignKey
     )
 from sqlalchemy.orm import relationship
+from sqlalchemy.schema import Table
 import geoalchemy2
 
 import colander
@@ -54,6 +56,24 @@ class ContactPerson(Base):
         }})
 
 
+class Situation(Base):
+    __tablename__ = 'situation'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(Text, nullable=False)
+    name_fr = Column(Text, nullable=False)
+
+
+class SituationForPermission(Base):
+    __tablename__ = 'situation_for_permission'
+
+    id = Column(Integer, primary_key=True)
+    situationId = Column(
+        Integer, ForeignKey('situation.id'))
+    permissionId = Column(
+        Integer, ForeignKey('excavations.id'))
+
+
 class ExcavationPermission(Base):
     __tablename__ = 'excavations'
     __colanderalchemy_config__ = {
@@ -86,6 +106,18 @@ class ExcavationPermission(Base):
             'title': _('Motive for the Work'),
             'widget': deform.widget.TextAreaWidget(rows=3),
         }})
+    situations = relationship(
+        SituationForPermission,
+        info={
+            'colanderalchemy': {
+                'title': _('Situation'),
+                'widget': deform_ext.RelationMultiSelect2Widget(
+                    Situation,
+                    'id',
+                    'name',
+                    order_by='name'
+                )
+            }})
     contactPersons = relationship(
         ContactPerson,
         # make sure persons are deleted when removed from the relation
@@ -185,15 +217,22 @@ def setup_test_data():
     from c2cgeoform.models import DBSession
     import transaction
 
-    if DBSession.query(District).get(0) is not None:
-        return
+    if DBSession.query(District).get(0) is None:
+        DBSession.add(District(id=0, name="Pully"))
+        DBSession.add(District(id=1, name="Paudex"))
+        DBSession.add(District(id=2, name="Belmont-sur-Lausanne"))
+        DBSession.add(District(id=3, name="Trois-Chasseurs"))
+        DBSession.add(District(id=4, name="La Claie-aux-Moines"))
+        DBSession.add(District(id=5, name="Savigny"))
+        DBSession.add(District(id=6, name="Mollie-Margot"))
 
-    DBSession.add(District(id=0, name="Pully"))
-    DBSession.add(District(id=1, name="Paudex"))
-    DBSession.add(District(id=2, name="Belmont-sur-Lausanne"))
-    DBSession.add(District(id=3, name="Trois-Chasseurs"))
-    DBSession.add(District(id=4, name="La Claie-aux-Moines"))
-    DBSession.add(District(id=5, name="Savigny"))
-    DBSession.add(District(id=6, name="Mollie-Margot"))
+    if DBSession.query(Situation).get(0) is None:
+        DBSession.add(Situation(id=0, name="Road", name_fr="Route"))
+        DBSession.add(Situation(id=1, name="Sidewalk", name_fr="Trottoir"))
+        DBSession.add(Situation(id=2, name="Berm", name_fr="Berme"))
+        DBSession.add(Situation(
+            id=3, name="Vegetated berm", name_fr="Berme végétalisée"))
+        DBSession.add(Situation(id=4, name="Green zone", name_fr="Zone verte"))
+        DBSession.add(Situation(id=5, name="Cobblestone", name_fr="Pavés"))
 
     transaction.commit()

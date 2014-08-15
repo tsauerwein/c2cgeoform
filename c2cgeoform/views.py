@@ -31,10 +31,11 @@ def form(request):
 
     if 'submit' in request.POST:
         form_data = request.POST.items()
-
+        print form_data
         try:
             obj_dict = form.validate(form_data)
         except ValidationFailure, e:
+            print e.error
             rendered = e.render()
         else:
             obj = geo_form_schema.schema_user.objectify(obj_dict)
